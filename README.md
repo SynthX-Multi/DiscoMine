@@ -25,7 +25,7 @@ It keeps your Minecraft server awake by automatically connecting an AFK bot when
 # 🚀 Setup (WispByte)
 
 > [!TIP]
-> Need a more detailed walkthrough? See **[WISPBYTE_SETUP.md](WISPBYTE_SETUP.md)** for a complete step-by-step guide.
+> Need a more detailed walkthrough? See **[Setup.md](Setup.md)** for a complete step-by-step guide.
 
 ## 1. Create a Discord Bot
 
