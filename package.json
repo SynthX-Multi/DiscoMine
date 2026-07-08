@@ -1,7 +1,7 @@
 {
   "name": "discomine",
   "version": "1.0.0",
-  "description": "DiscoMine — 24/7 Discord AFK bot for Minecraft servers, hosted on WispByte",
+  "description": "An advanced discord bot that preserves a Minecraft server 24/7",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -15,9 +15,9 @@
   "dependencies": {
     "discord.js": "^14.14.1",
     "dotenv": "^16.3.1",
-    "minecraft-data": "3.66.0",
-    "mineflayer": "4.23.0",
-    "mineflayer-pathfinder": "2.4.5",
-    "minecraft-protocol": "1.47.0"
+    "minecraft-data": "^3.108.0",
+    "mineflayer": "^4.37.1",
+    "mineflayer-pathfinder": "^2.4.5",
+    "minecraft-protocol": "^1.66.0"
   }
 }
