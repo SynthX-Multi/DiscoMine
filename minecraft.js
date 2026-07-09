@@ -15,15 +15,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 const mineflayer = require('mineflayer');
-const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
+const { pathfinder, Movements } = require('mineflayer-pathfinder');
 const EventEmitter = require('events');
 const config = require('./config');
 
 const state = {
   bot: null,
   connected: false,
+  connecting: false,
   startTime: null,
   reconnectAttempts: 0,
   isReconnecting: false,
@@ -37,8 +37,12 @@ const state = {
 
 const emitter = new EventEmitter();
 
+function signalStateChange() {
+  emitter.emit('stateChanged', getStatus());
+}
+
 function clearIntervals() {
-  state.intervals.forEach(id => clearInterval(id));
+  state.intervals.forEach((id) => clearInterval(id));
   state.intervals = [];
 }
 
@@ -49,8 +53,14 @@ function addInterval(fn, ms) {
 }
 
 function clearTimers() {
-  if (state.reconnectTimer) { clearTimeout(state.reconnectTimer); state.reconnectTimer = null; }
-  if (state.connectionTimer) { clearTimeout(state.connectionTimer); state.connectionTimer = null; }
+  if (state.reconnectTimer) {
+    clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = null;
+  }
+  if (state.connectionTimer) {
+    clearTimeout(state.connectionTimer);
+    state.connectionTimer = null;
+  }
 }
 
 function log(tag, msg) {
@@ -58,22 +68,32 @@ function log(tag, msg) {
   console.log(`[${ts}] [${tag}] ${msg}`);
 }
 
+function getMode() {
+  if (state.connected) return 'online';
+  if (state.connecting || state.isReconnecting) return 'reconnecting';
+  return 'offline';
+}
+
 function start() {
-  if (state.connected || state.isReconnecting) {
+  if (state.connected || state.connecting || state.isReconnecting) {
     log('Bot', 'already running or connecting');
     return;
   }
   state.manualStop = false;
   state.leftForPlayers = false;
   state.reconnectAttempts = 0;
+  state.connecting = true;
+  signalStateChange();
   createBot();
 }
 
 function stop() {
   state.manualStop = true;
   state.leftForPlayers = false;
+  state.connecting = false;
   clearTimers();
   clearIntervals();
+
   if (state.bot) {
     try {
       state.bot.removeAllListeners();
@@ -83,16 +103,20 @@ function stop() {
     }
     state.bot = null;
   }
+
   state.connected = false;
   state.isReconnecting = false;
   state.playerCount = 0;
   log('Bot', 'stopped');
+  signalStateChange();
   emitter.emit('stopped');
 }
 
 function getStatus() {
   return {
+    mode: getMode(),
     connected: state.connected,
+    connecting: state.connecting,
     leftForPlayers: state.leftForPlayers,
     playerCount: state.playerCount,
     uptime: state.connected && state.startTime
@@ -104,16 +128,20 @@ function getStatus() {
 }
 
 function createBot() {
-  if (state.isReconnecting) return;
-
   if (state.bot) {
     clearIntervals();
-    try { state.bot.removeAllListeners(); state.bot.end(); } catch (_) { }
+    try {
+      state.bot.removeAllListeners();
+      state.bot.end();
+    } catch (_) { }
     state.bot = null;
   }
 
+  state.connecting = true;
+  signalStateChange();
+
   log('Bot', `connecting to ${config.server.ip}:${config.server.port}...`);
-  emitter.emit('connecting');
+  emitter.emit('connecting', getStatus());
 
   let bot;
   try {
@@ -136,8 +164,10 @@ function createBot() {
     });
     bot.loadPlugin(pathfinder);
   } catch (err) {
+    state.connecting = false;
     log('Bot', `failed to start: ${err.message}`);
-    if (state.leftForPlayers) rejoinASAP();
+    signalStateChange();
+    if (!state.manualStop) rejoinASAP();
     return;
   }
 
@@ -147,9 +177,14 @@ function createBot() {
   state.connectionTimer = setTimeout(() => {
     if (!state.connected) {
       log('Bot', 'timed out, no spawn in 150s');
-      try { bot.removeAllListeners(); bot.end(); } catch (_) { }
+      try {
+        bot.removeAllListeners();
+        bot.end();
+      } catch (_) { }
       state.bot = null;
-      if (state.leftForPlayers) rejoinASAP();
+      state.connecting = false;
+      signalStateChange();
+      if (!state.manualStop) rejoinASAP();
     }
   }, 150_000);
 
@@ -161,12 +196,14 @@ function createBot() {
 
     clearTimers();
     state.connected = true;
+    state.connecting = false;
     state.startTime = Date.now();
     state.reconnectAttempts = 0;
     state.isReconnecting = false;
     state.leftForPlayers = false;
 
     log('Bot', `joined! version ${bot.version}, watching players`);
+    signalStateChange();
     emitter.emit('connected', { version: bot.version });
 
     const mcData = require('minecraft-data')(bot.version);
@@ -183,15 +220,19 @@ function createBot() {
     const r = typeof reason === 'object' ? JSON.stringify(reason) : reason;
     log('Bot', `kicked: ${r}`);
     state.connected = false;
+    state.connecting = false;
     clearIntervals();
+    signalStateChange();
     emitter.emit('kicked', r);
   });
 
   bot.on('end', (reason) => {
     log('Bot', `disconnected: ${reason || 'unknown'}`);
     state.connected = false;
+    state.connecting = false;
     state.playerCount = 0;
     clearIntervals();
+    signalStateChange();
     emitter.emit('disconnected', reason);
 
     if (state.manualStop) return;
@@ -214,7 +255,9 @@ function createBot() {
 function startAntiAFK(bot, movements) {
   addInterval(() => {
     if (!state.connected || !bot) return;
-    try { bot.swingArm(); } catch (_) { }
+    try {
+      bot.swingArm();
+    } catch (_) { }
   }, 15_000 + Math.random() * 45_000);
 
   addInterval(() => {
@@ -226,7 +269,9 @@ function startAntiAFK(bot, movements) {
 
   addInterval(() => {
     if (!state.connected || !bot) return;
-    try { bot.setQuickBarSlot(Math.floor(Math.random() * 9)); } catch (_) { }
+    try {
+      bot.setQuickBarSlot(Math.floor(Math.random() * 9));
+    } catch (_) { }
   }, 30_000 + Math.random() * 60_000);
 
   addInterval(() => {
@@ -235,8 +280,9 @@ function startAntiAFK(bot, movements) {
       bot.look(Math.random() * Math.PI * 2, 0, true);
       bot.setControlState('forward', true);
       setTimeout(() => {
-        if (bot && typeof bot.setControlState === 'function')
+        if (bot && typeof bot.setControlState === 'function') {
           bot.setControlState('forward', false);
+        }
       }, 500 + Math.random() * 1_500);
     } catch (_) { }
   }, 120_000 + Math.random() * 240_000);
@@ -247,8 +293,9 @@ function startAntiAFK(bot, movements) {
       try {
         bot.setControlState('sneak', true);
         setTimeout(() => {
-          if (bot && typeof bot.setControlState === 'function')
+          if (bot && typeof bot.setControlState === 'function') {
             bot.setControlState('sneak', false);
+          }
         }, 300 + Math.random() * 800);
       } catch (_) { }
     }
@@ -259,8 +306,9 @@ function startAntiAFK(bot, movements) {
     try {
       bot.setControlState('jump', true);
       setTimeout(() => {
-        if (bot && typeof bot.setControlState === 'function')
+        if (bot && typeof bot.setControlState === 'function') {
           bot.setControlState('jump', false);
+        }
       }, 100);
     } catch (_) { }
   }, 90_000 + Math.random() * 180_000);
@@ -272,9 +320,10 @@ function checkAndActOnPlayers(bot, movements) {
   if (!state.connected || !bot) return;
 
   const count = Object.values(bot.players || {})
-    .filter(p => p.username !== config.bot.username)
+    .filter((p) => p.username !== config.bot.username)
     .length;
   state.playerCount = count;
+  signalStateChange();
 
   if (count > 0) {
     log('Bot', `someone is in the server (${count} players), leaving to save energy`);
@@ -286,9 +335,10 @@ function checkAndActOnPlayers(bot, movements) {
     addInterval(() => {
       if (!state.connected || !bot) return;
       const c = Object.values(bot.players || {})
-        .filter(p => p.username !== config.bot.username)
+        .filter((p) => p.username !== config.bot.username)
         .length;
       state.playerCount = c;
+      signalStateChange();
       if (c > 0) {
         log('Bot', `someone joined (${c} players), leaving`);
         emitter.emit('leftForPlayers', c);
@@ -301,8 +351,11 @@ function checkAndActOnPlayers(bot, movements) {
 function leaveForPlayers() {
   if (!state.connected || state.leftForPlayers) return;
   state.leftForPlayers = true;
+  state.connecting = false;
   clearIntervals();
   clearTimers();
+  signalStateChange();
+
   try {
     if (state.bot) state.bot.end('leaving — players online');
   } catch (e) {
@@ -315,15 +368,19 @@ function rejoinASAP() {
   if (state.isReconnecting) return;
 
   state.isReconnecting = true;
+  state.connecting = false;
   state.reconnectAttempts++;
 
   const delay = 8_000;
   log('Bot', `checking again in 8s (attempt #${state.reconnectAttempts})`);
+  signalStateChange();
   emitter.emit('reconnecting', { attempt: state.reconnectAttempts, delayMs: delay });
 
   state.reconnectTimer = setTimeout(() => {
     state.reconnectTimer = null;
     state.isReconnecting = false;
+    state.connecting = true;
+    signalStateChange();
     createBot();
   }, delay);
 }
