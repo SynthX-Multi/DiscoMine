@@ -195,38 +195,51 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   const status = mc.getStatus();
 
-  if (interaction.customId === 'panel_start') {
-    if (status.mode !== 'offline') {
-      return interaction.reply({
-        content: `The bot is already ${status.mode}.`,
-        ephemeral: true,
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ ephemeral: true });
+    }
+
+    if (interaction.customId === 'panel_start') {
+      if (status.mode !== 'offline') {
+        return interaction.editReply({
+          content: `The bot is already ${status.mode}.`,
+        });
+      }
+
+      mc.start();
+      await schedulePanelRefresh();
+
+      return interaction.editReply({
+        content: 'Start requested. Updating panel status...',
       });
     }
 
-    mc.start();
-    await schedulePanelRefresh();
+    if (interaction.customId === 'panel_stop') {
+      if (status.mode === 'offline') {
+        return interaction.editReply({
+          content: 'The bot is already offline.',
+        });
+      }
 
-    return interaction.reply({
-      content: 'Start requested. The status panel will update as the bot connects.',
-      ephemeral: true,
-    });
-  }
+      mc.stop();
+      await schedulePanelRefresh();
 
-  if (interaction.customId === 'panel_stop') {
-    if (status.mode === 'offline') {
-      return interaction.reply({
-        content: 'The bot is already offline.',
-        ephemeral: true,
+      return interaction.editReply({
+        content: 'Stop requested. Updating panel status...',
       });
     }
+  } catch (err) {
+    console.error('[Discord] button interaction failed:', err.message);
 
-    mc.stop();
-    await schedulePanelRefresh();
-
-    return interaction.reply({
-      content: 'Stop requested. The status panel has been updated.',
-      ephemeral: true,
-    });
+    if (!interaction.replied) {
+      try {
+        await interaction.reply({
+          content: 'Something went wrong while updating the panel.',
+          ephemeral: true,
+        });
+      } catch (_) { }
+    }
   }
 });
 
