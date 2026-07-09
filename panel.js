@@ -17,7 +17,7 @@
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Colors, EmbedBuilder } = require('discord.js');
 
-const PANEL_TITLE = '🎛️ DiscoMine Panel';
+const PANEL_TITLE = 'DiscoMine Panel';
 
 function formatUptime(seconds) {
   if (!seconds || seconds <= 0) return '0s';
@@ -60,13 +60,10 @@ function buildPanelEmbed(status, config) {
   const uptime = mode === 'online' ? formatUptime(status.uptime) : '—';
 
   return new EmbedBuilder()
-    .setTitle(PANEL_TITLE)
+    .setTitle(`${meta.emoji} ${PANEL_TITLE}`)
     .setColor(meta.color)
     .setDescription(
-      [
-        `**Current Bot Status:** ${meta.emoji} **${meta.label}**`,
-        meta.blurb,
-      ].join('\n')
+      meta.blurb
     )
     .addFields(
       {
