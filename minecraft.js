@@ -16,6 +16,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const mineflayer = require('mineflayer');
+const minecraftProtocol = require('minecraft-protocol');
 const { pathfinder, Movements } = require('mineflayer-pathfinder');
 const EventEmitter = require('events');
 const config = require('./config');
@@ -29,8 +30,10 @@ const state = {
   isReconnecting: false,
   manualStop: false,
   leftForPlayers: false,
+  waitingForEmpty: false,
   playerCount: 0,
   intervals: [],
+  statusPollTimer: null,
   reconnectTimer: null,
   connectionTimer: null,
 };
@@ -53,6 +56,10 @@ function addInterval(fn, ms) {
 }
 
 function clearTimers() {
+  if (state.statusPollTimer) {
+    clearTimeout(state.statusPollTimer);
+    state.statusPollTimer = null;
+  }
   if (state.reconnectTimer) {
     clearTimeout(state.reconnectTimer);
     state.reconnectTimer = null;
@@ -74,22 +81,47 @@ function getMode() {
   return 'offline';
 }
 
-function start() {
-  if (state.connected || state.connecting || state.isReconnecting) {
-    log('Bot', 'already running or connecting');
+async function start() {
+  if (state.connected || state.connecting || state.isReconnecting || state.waitingForEmpty) {
+    log('Bot', 'already running or waiting');
     return;
   }
+
   state.manualStop = false;
   state.leftForPlayers = false;
+  state.waitingForEmpty = false;
   state.reconnectAttempts = 0;
   state.connecting = true;
   signalStateChange();
+
+  try {
+    const status = await pingServerStatus();
+    state.playerCount = status.playerCount;
+    signalStateChange();
+
+    if (status.online && status.playerCount > 0) {
+      log('Bot', `players are already online (${status.playerCount}), waiting for them to leave`);
+      await startWaitingForEmptyServer();
+      return;
+    }
+
+    if (status.online && status.playerCount <= 0) {
+      log('Bot', 'server is empty, joining now');
+    } else {
+      log('Bot', 'status ping unavailable, trying to join directly');
+    }
+  } catch (err) {
+    log('Bot', `initial status ping failed: ${err.message}`);
+    log('Bot', 'trying to join directly');
+  }
+
   createBot();
 }
 
 function stop() {
   state.manualStop = true;
   state.leftForPlayers = false;
+  state.waitingForEmpty = false;
   state.connecting = false;
   clearTimers();
   clearIntervals();
@@ -118,6 +150,7 @@ function getStatus() {
     connected: state.connected,
     connecting: state.connecting,
     leftForPlayers: state.leftForPlayers,
+    waitingForEmpty: state.waitingForEmpty,
     playerCount: state.playerCount,
     uptime: state.connected && state.startTime
       ? Math.floor((Date.now() - state.startTime) / 1000)
@@ -138,6 +171,7 @@ function createBot() {
   }
 
   state.connecting = true;
+  state.waitingForEmpty = false;
   signalStateChange();
 
   log('Bot', `connecting to ${config.server.ip}:${config.server.port}...`);
@@ -200,6 +234,7 @@ function createBot() {
     state.startTime = Date.now();
     state.reconnectAttempts = 0;
     state.isReconnecting = false;
+    state.waitingForEmpty = false;
     state.leftForPlayers = false;
 
     log('Bot', `joined! version ${bot.version}, watching players`);
@@ -238,8 +273,8 @@ function createBot() {
     if (state.manualStop) return;
 
     if (state.leftForPlayers) {
-      log('Bot', 'left because players were on, rechecking in 8s');
-      rejoinASAP();
+      log('Bot', 'left because players were on, waiting for empty server');
+      startWaitingForEmptyServer();
     } else {
       log('Bot', 'disconnected unexpectedly, rejoining ASAP');
       emitter.emit('kicked_reconnect');
@@ -351,6 +386,7 @@ function checkAndActOnPlayers(bot, movements) {
 function leaveForPlayers() {
   if (!state.connected || state.leftForPlayers) return;
   state.leftForPlayers = true;
+  state.waitingForEmpty = true;
   state.connecting = false;
   clearIntervals();
   clearTimers();
