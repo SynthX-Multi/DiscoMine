@@ -67,13 +67,13 @@ DiscoMine automatically manages your server:
 All configuration is handled through environment variables—no code changes required.
 
 | Variable            | Default        | Description                                           |
-| ------------------- | -------------- | ---------------------------------------               |
+| ------------------- | -------------- | ----------------------------------------------------- |
 | `DISCORD_TOKEN`     | **Required**   | Discord bot token                                     |
 | `CLIENT_ID`         | **Required**   | Discord application client ID                         |
 | `GUILD_ID`          | **Required**   | Discord server ID                                     |
 | `MC_SERVER_IP`      | **Required**   | Minecraft server address                              |
 | `MC_SERVER_PORT`    | `25565`        | Minecraft server port                                 |
-| `MC_SERVER_VERSION` | `Auto`.        | Minecraft server version.                             |
+| `MC_SERVER_VERSION` | `Auto`         | Minecraft server version.                             |
 | `MC_USERNAME`       | `DiscoMineAFK` | AFK bot username                                      |
 | `MC_PASSWORD`       | *(empty)*      | Leave empty for offline/cracked servers               |
 | `MC_AUTH`           | `offline`      | `offline` or `microsoft`                              |
