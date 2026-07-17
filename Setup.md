@@ -158,15 +158,11 @@ index.js
 minecraft.js
 config.js
 package.json
+.env
 ```
 
-> [!WARNING]
-> **Do NOT upload:**
->
-> - `node_modules`
-> - `.env`
->
-> WispByte installs dependencies automatically using `package.json`, and configuration should be stored using Environment Variables.
+> [!IMPORTANT]
+> Make sure to update the .env file with your variables and rename it to '.env' if it is named '.env.txt'
 
 ---
 
@@ -183,11 +179,12 @@ Create the following variables.
 | `GUILD_ID` | Discord Server ID | `987654321098765432` |
 | `MC_SERVER_IP` | Minecraft server address | `play.example.net` |
 | `MC_SERVER_PORT` | Minecraft port | `25565` |
+| `MC_SERVER_VERSION` | Minecraft server version | `1.21.1` |
 | `MC_USERNAME` | Bot username | `DiscoMineAFK` |
 | `MC_AUTH` | `offline` or `microsoft` | `offline` |
 | `STATUS_CHANNEL_ID` | Optional Discord channel | `112233445566778899` |
 
-Finally, verify your startup command is:
+Finally, verify your startup command is: (not needed if using Wispbyte)
 
 ```bash
 node index.js
