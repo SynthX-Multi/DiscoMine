@@ -269,7 +269,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   try {
     const status = mc.getStatus();
 
-    // Reply immediately and privately.
+    // Panel interaction reply
     if (interaction.customId === 'panel_start') {
       await interaction.reply({
         content: status.mode !== 'offline'
@@ -319,7 +319,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       }
     } catch (_) {
-      // Ignore secondary message failures.
+      // Ignore secondary message failures
     }
   }
 });
