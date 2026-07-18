@@ -1,6 +1,9 @@
-# 🚀 Deploying DiscoMine on WispByte
+# 🚀 Deploying DiscoMine v2
 
-This guide walks you through deploying **DiscoMine** on **WispByte**, from creating your Discord bot to configuring the server and keeping it online 24/7.
+This guide walks you through deploying **DiscoMine** on a Discord bot hosting service. While the steps are generally the same across most hosts, this guide uses **Quaxly Hosting** as the example.
+
+> [!TIP]
+> It is **highly recommended to complete this setup on a PC**. Uploading files, editing configuration, and managing your hosting panel is much easier on desktop.
 
 ---
 
@@ -11,10 +14,10 @@ The diagram below shows how DiscoMine communicates with your Minecraft server an
 ```mermaid
 graph TD
     User([Minecraft Player]) -->|Joins / Leaves| Server[Minecraft Server]
-    Wisp[WispByte Node.js Container] -->|Monitors Players| Server
-    Wisp -->|Runs AFK Bot| Server
-    Wisp <-->|Slash Commands & Status| Discord[Discord Server]
-    Admin([Discord Admin]) -->|/start /stop /status| Discord
+    Host[Discord Bot Host] -->|Monitors Players| Server
+    Host -->|Runs AFK Bot| Server
+    Host <-->|Bot Panel & Status| Discord[Discord Server]
+    Admin([Discord Admin]) -->|Uses Bot Panel| Discord
 ```
 
 ---
@@ -27,7 +30,7 @@ Before deploying DiscoMine, you'll need to create a Discord application and bot.
 2. Click **New Application**.
 3. Give your application a name (for example, **DiscoMine**) and click **Create**.
 
-### Copy your Application ID
+## Copy your Application ID
 
 1. Open **General Information**.
 2. Copy the **Application ID**.
@@ -37,7 +40,7 @@ Before deploying DiscoMine, you'll need to create a Discord application and bot.
 CLIENT_ID
 ```
 
-### Create your Bot Token
+## Create your Bot Token
 
 1. Open the **Bot** tab.
 2. Click **Reset Token** (or **Copy Token** if one already exists).
@@ -52,7 +55,7 @@ DISCORD_TOKEN
 > [!IMPORTANT]
 > Never share your Discord bot token with anyone. Anyone with your token has full control of your bot.
 
-### Enable Privileged Gateway Intents
+## Enable Privileged Gateway Intents
 
 Still under the **Bot** page, enable:
 
@@ -62,19 +65,16 @@ Still under the **Bot** page, enable:
 
 Click **Save Changes**.
 
-These intents are required for DiscoMine to function correctly.
-
-### Invite the Bot
+## Invite the Bot
 
 1. Open **OAuth2 → URL Generator**.
 2. Under **Scopes**, select:
    - `bot`
-   - `applications.commands`
 3. Under **Bot Permissions**, enable:
    - Send Messages
-   - Use Slash Commands
    - Embed Links
    - Read Message History
+   - Use External Emojis (optional)
 
 Open the generated URL and invite the bot to your Discord server.
 
@@ -110,9 +110,7 @@ GUILD_ID
 
 ## Copy a Status Channel ID (Optional)
 
-Choose (or create) a text channel where DiscoMine should post connection updates.
-
-Right-click the channel.
+Right-click the channel you want DiscoMine to send status updates in.
 
 Select:
 
@@ -128,22 +126,57 @@ STATUS_CHANNEL_ID
 
 ---
 
-# ☁️ Step 3 — Create a WispByte Server
+# ⛏️ Step 3 — Prepare Your Minecraft Server
 
-1. Go to https://wispbyte.com
-2. Log into the client panel.
-3. Create a new server.
-4. Choose the **Node.js** template.
-5. Select the **Free Plan**.
-6. Wait for the server to finish provisioning.
+Before deploying DiscoMine, make sure your Minecraft server is configured correctly.
 
-Once the server status shows **Active**, continue to the next step.
+### Recommended Settings
+
+- ✅ Server Software: **Paper**
+- ✅ Install **ViaVersion**
+- ✅ Install **ViaBackwards**
+- ✅ Enable **Offline/Cracked Mode** (if your setup requires offline authentication)
+
+These settings help ensure DiscoMine can connect successfully and remain compatible with different Minecraft versions.
 
 ---
 
-# 📤 Step 4 — Upload DiscoMine
+# ☁️ Step 4 — Create a Quaxly Hosting Server
 
-Open your WispByte server.
+1. Go to **https://quaxly.com/**
+2. Log into your panel.
+3. Create a new **Node.js** server.
+4. Wait until the server has finished provisioning.
+
+Once the server is ready, continue to the next step.
+
+---
+
+# 📤 Step 5 — Upload DiscoMine
+
+Open your Quaxly server.
+
+Navigate to:
+
+```
+Files
+```
+
+Upload your entire DiscoMine project.
+
+You can upload everything except:
+
+```
+node_modules
+```
+
+The hosting provider will automatically install dependencies from `package.json`.
+
+---
+
+# 📤 Step 5 — Upload DiscoMine
+
+Open your Quaxly server.
 
 Navigate to:
 
@@ -161,59 +194,64 @@ package.json
 ```
 
 > [!WARNING]
-> **Do NOT upload:**
->
-> - `node_modules`
-> - `.env`
->
-> WispByte installs dependencies automatically using `package.json`, and configuration should be stored using Environment Variables.
+> **Do NOT upload any other files**
+> Only upload the files listed above. Continue with the setup after doing so.
+
+# ⚙️ Step 6 — Upload Your .env File
+
+Instead of manually creating environment variables, simply upload your project's:
+
+```
+.env
+```
+
+file into the root directory of your server.
+
+Need an example?
+
+See:
+
+```
+.env.example
+```
+
+> [!IMPORTANT]
+> Before starting the bot, make sure you've updated every value inside your `.env` file with the needed information for the bot.
 
 ---
 
-# ⚙️ Step 5 — Configure Environment Variables
+# ⚙️ Step 7 — Verify Startup File
 
-Open your server's **Startup** or **Environment Variables** page.
+Open the **Startup** tab in your Quaxly panel.
 
-Create the following variables.
+Ensure the startup file is set to:
 
-| Variable | Description | Example |
-|-----------|-------------|---------|
-| `DISCORD_TOKEN` | Discord bot token | `MT...` |
-| `CLIENT_ID` | Discord Application ID | `123456789012345678` |
-| `GUILD_ID` | Discord Server ID | `987654321098765432` |
-| `MC_SERVER_IP` | Minecraft server address | `play.example.net` |
-| `MC_SERVER_PORT` | Minecraft port | `25565` |
-| `MC_USERNAME` | Bot username | `DiscoMineAFK` |
-| `MC_AUTH` | `offline` or `microsoft` | `offline` |
-| `STATUS_CHANNEL_ID` | Optional Discord channel | `112233445566778899` |
-
-Finally, verify your startup command is:
-
-```bash
-node index.js
+```
+index.js
 ```
 
-or
-
-```bash
-npm start
-```
+No further changes should be required.
 
 ---
 
-# 🚀 Step 6 — Start the Bot
+# 🚀 Step 8 — Start DiscoMine
 
-Return to the **Console** page.
+Before starting the bot:
 
-Click **Start**.
+- ✅ Make sure your **Minecraft server is already running.**
 
-During the first startup WispByte will automatically install all required dependencies.
+Once your Minecraft server is online:
+
+1. Open the **Console** page.
+2. Click **Start**.
+
+During the first startup, Quaxly will automatically install all required dependencies.
 
 After installation completes you should see output similar to:
 
 ```text
 [Discord] Logged in as ...
-[Discord] Slash commands registered!
+[Discord] slash commands removed.
 [Bot] Starting bot...
 ```
 
@@ -223,62 +261,31 @@ DiscoMine is now running 24/7.
 
 ---
 
-# 🎮 Slash Commands
+# 🎮 Using DiscoMine
 
-### `/start`
+DiscoMine v2 now uses an interactive **Discord Bot Panel** instead of slash commands.
 
-Starts the Minecraft bot.
+From the panel you can:
 
-If the server is empty, the bot remains connected as an AFK player.
-
-If players join, the bot disconnects automatically.
-
----
-
-### `/stop`
-
-Immediately disconnects the Minecraft bot.
-
----
-
-### `/status`
-
-Displays:
-
-- Connection status
-- Player count
-- Bot uptime
-- Reconnect count
+- Start the Minecraft bot
+- Stop the Minecraft bot
+- View connection status
+- View player count
+- Monitor the bot from Discord
 
 ---
 
 # 🛠️ Troubleshooting
 
-## Slash commands aren't appearing
-
-Make sure the bot was invited using both OAuth scopes:
-
-- `bot`
-- `applications.commands`
-
-If necessary:
-
-1. Remove the bot from your Discord server.
-2. Generate a new invite link.
-3. Invite the bot again.
-
----
-
-## Minecraft connection timed out
+## Bot won't connect to Minecraft
 
 Verify:
 
-- `MC_SERVER_IP`
-- `MC_SERVER_PORT`
-
-If your Minecraft server uses sleep mode, the first connection attempt may fail while the server starts.
-
-DiscoMine will automatically retry until the server becomes available.
+- Your Minecraft server is running.
+- Your `.env` values are correct.
+- Your server IP and port are correct.
+- Offline/Cracked Mode is enabled if you're using offline authentication.
+- Your server is running Paper.
 
 ---
 
@@ -298,12 +305,23 @@ Enable:
 - ✅ Server Members Intent
 - ✅ Message Content Intent
 
-Click **Save Changes**, then restart the bot.
+Save your changes and restart the bot.
+
+---
+
+## Bot won't start
+
+Check that:
+
+- `index.js` is selected as the startup file.
+- Your `.env` file has been uploaded.
+- Every value in `.env` has been updated.
+- All project files were uploaded correctly.
 
 ---
 
 # ✅ You're All Set!
 
-Your DiscoMine bot is now fully configured and running on WispByte.
+Your DiscoMine bot is now fully configured and running on your preferred Discord bot hosting provider.
 
-If you encounter any issues, double-check your environment variables, Discord bot configuration, and Minecraft server details before seeking support.
+This guide used **Quaxly Hosting** as an example, but the same deployment process is similar on most Node.js Discord bot hosting services.
