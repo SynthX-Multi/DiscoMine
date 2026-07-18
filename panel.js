@@ -104,7 +104,7 @@ function buildPanelEmbed(status, config) {
         inline: true,
       }] : []),
     )
-    .setFooter({ text: 'made by akahn • DiscoMine control panel' })
+    .setFooter({ text: 'rewritten by TheHolyJay • DiscoMine control panel' })
     .setTimestamp();
 }
 
