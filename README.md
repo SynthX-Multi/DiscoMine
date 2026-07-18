@@ -21,6 +21,18 @@ It keeps your Minecraft server awake by automatically connecting an AFK bot when
 
 ---
 
+# 📦 v2.2.3 Changelog
+**Legend:**
+`[+]` Added `[-]` Removed `[!]` Fixed `[#]` Modified/Changed
+
+* `[+]` Added version counter
+* `[+]` Overall tweaks and optimisations
+* `[#]` Updated .md files
+* `[#]` Switched ping method from join/leave events to remote API status ping
+* `[#]` Changed from slash commands to bot panel
+
+---
+
 # 🚀 Setup
 
 > [!TIP]
